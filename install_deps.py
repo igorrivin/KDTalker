@@ -131,41 +131,46 @@ def create_onnx_helper_script():
 import os
 import sys
 import subprocess
-from pathlib import Path
+from pathlib import Path as PathLib
 
 def main():
     print("ONNX Runtime CUDA Configuration Helper")
     print("======================================")
     
     # Try to detect CUDA
-    cuda_path = {repr(cuda_path) if cuda_path else 'None'}
-    if not cuda_path:
+    cuda_path_var = {repr(cuda_path) if cuda_path else 'None'}
+    if not cuda_path_var:
         print("Could not auto-detect CUDA path.")
         cuda_path_input = input("Please enter your CUDA installation path (e.g., /usr/local/cuda): ")
         if cuda_path_input and os.path.exists(cuda_path_input):
-            cuda_path = cuda_path_input
+            cuda_path_var = cuda_path_input
         else:
             print("No valid CUDA path provided. ONNX Runtime may not use CUDA.")
     
     # Set environment variables
-    if cuda_path:
-        print(f"Setting CUDA_PATH={cuda_path}")
-        os.environ['CUDA_PATH'] = cuda_path
+    if cuda_path_var:
+        print(f"Setting CUDA_PATH={cuda_path_var}")
+        os.environ['CUDA_PATH'] = cuda_path_var
         
         # Set LD_LIBRARY_PATH - check for common library paths
         ld_lib_path = os.environ.get('LD_LIBRARY_PATH', '')
         
         # Check for common CUDA library paths
         possible_lib_paths = [
-            os.path.join(cuda_path, 'lib64'),
-            os.path.join(cuda_path, 'lib'),
-            os.path.join(cuda_path, 'lib/x64'),
+            os.path.join(cuda_path_var, 'lib64'),
+            os.path.join(cuda_path_var, 'lib'),
+            os.path.join(cuda_path_var, 'lib/x64'),
         ]
         
         # Add WSL2-specific paths if applicable
-        if is_wsl():
-            wsl_paths = find_wsl_nvidia_paths()
-            possible_lib_paths.extend(wsl_paths)
+        if os.path.exists('/proc/version') and 'microsoft' in open('/proc/version').read().lower():
+            # Direct implementation to avoid dependency on other functions
+            wsl_specific_paths = []
+            # Check for WSL-specific NVIDIA paths
+            for wsl_path in ['/usr/lib/wsl/lib', '/usr/lib/wsl/drivers', '/usr/lib/wsl/nvidia']:
+                if os.path.exists(wsl_path):
+                    wsl_specific_paths.append(wsl_path)
+            possible_lib_paths.extend(wsl_specific_paths)
             # Additional common WSL2 paths
             possible_lib_paths.extend([
                 '/usr/lib/wsl/lib',
@@ -204,9 +209,9 @@ def main():
     
     # Detect CUDA version for appropriate ORT version
     cuda_version = None
-    if cuda_path:
+    if cuda_path_var:
         try:
-            nvcc_output = subprocess.check_output([os.path.join(cuda_path, 'bin', 'nvcc'), '--version']).decode()
+            nvcc_output = subprocess.check_output([os.path.join(cuda_path_var, 'bin', 'nvcc'), '--version']).decode()
             for line in nvcc_output.split('\\n'):
                 if "release" in line and "V" in line:
                     version_part = line.split("V")[1].split(".")[0]
@@ -322,7 +327,7 @@ else:
     
     print("\\nIf CUDA is not available, you can try:")
     print("  1. Set these in your .bashrc or before running python:")
-    print(f"     export CUDA_PATH={cuda_path or '/usr/local/cuda'}")
+    print(f"     export CUDA_PATH={cuda_path_var or '/usr/local/cuda'}")
     print(f"     export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH")
     print("  2. Try installing onnxruntime-gpu if available for your Python version")
     print("  3. Check CUDA installation with 'nvidia-smi' and 'nvcc --version'")
