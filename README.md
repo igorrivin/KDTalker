@@ -121,6 +121,18 @@ DLIB_USE_CUDA=0 pip install dlib==19.24.6
 pip install dlib==19.24.6 --no-cache-dir --install-option="--no USE_CUDA"
 ```
 
+4. For ONNX Runtime with CUDA support:
+```
+# The standard onnxruntime package supports CUDA if properly configured
+# If having issues, you can try:
+
+# For CUDA 11.8 compatibility:
+pip install onnxruntime==1.18.0
+
+# For CUDA 12.1 compatibility:
+pip install onnxruntime==1.21.0
+```
+
 ### 2. Download pretrained weights
 
 First, you can download all LiverPorait pretrained weights from [Google Drive](https://drive.google.com/drive/folders/1UtKgzKjFAOmZkhNK-OYT0caJ_w2XAnib). Unzip and place them in `./pretrained_weights`.

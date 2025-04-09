@@ -1,6 +1,6 @@
 # Unix/Mac/Linux requirements (non-WSL2 systems)
 # Core ML dependencies
-onnxruntime-gpu==1.18.0  # Critical for model compatibility
+onnxruntime==1.21.0  # Latest version for Unix/Mac with CUDA support from system
 transformers==4.39.0
 pyyaml==6.0.1
 scipy==1.12.0

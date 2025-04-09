@@ -47,15 +47,28 @@ def main():
         print(f"Error during installation: {e}")
         sys.exit(1)
     
+    # Additional instructions for all platforms
+    print("\nPostinstallation steps:")
+    print("1. Configure ONNX Runtime to use CUDA:")
+    print("   The standard onnxruntime package can use CUDA if properly configured.")
+    print("   Your Python code must specify CUDA providers when creating inference sessions, for example:")
+    print("   session = onnxruntime.InferenceSession(model_path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])")
+    print("")
+    
     # Additional instructions for WSL
     if is_windows_wsl:
-        print("\nWSL2-specific notes:")
+        print("WSL2-specific notes:")
         print("1. If dlib installation failed, try installing it separately:")
         print("   sudo apt-get install -y cmake build-essential libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev")
         print("   DLIB_USE_CUDA=0 pip install dlib==19.24.6")
         print("")
         print("2. Ensure CUDA is properly installed for PyTorch:")
         print("   nvidia-smi  # Should show your GPU")
+        print("")
+        print("3. For ONNX Runtime with CUDA in WSL2, you may need:")
+        print("   pip install onnxruntime-gpu  # If available for your CUDA version")
+        print("   # OR")
+        print("   CUDA_PATH=/usr/local/cuda pip install onnxruntime  # Point to your CUDA installation")
         print("")
 
 if __name__ == "__main__":
