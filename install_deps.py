@@ -418,14 +418,38 @@ def main():
         print(f"ERROR: {req_file} not found. Using default requirements.txt")
         req_file = "requirements.txt"
     
-    # Install dependencies
-    print(f"Installing dependencies from {req_file}...")
+    # Install critical dependencies first
+    print("Installing critical dependencies first...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python", "onnxruntime-gpu"])
+        print("Critical dependencies installed successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing critical dependencies: {e}")
+        print("Trying to install them separately...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python"])
+            print("OpenCV installed successfully!")
+        except:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python-headless"])
+                print("OpenCV headless installed successfully!")
+            except:
+                print("ERROR: Failed to install OpenCV. Please install it manually.")
+        
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "onnxruntime-gpu"])
+            print("onnxruntime-gpu installed successfully!")
+        except:
+            print("Failed to install onnxruntime-gpu.")
+    
+    # Install other dependencies
+    print(f"Installing remaining dependencies from {req_file}...")
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_file])
         print("Installation completed successfully!")
     except subprocess.CalledProcessError as e:
         print(f"Error during installation: {e}")
-        print("Continuing with ONNX Runtime installation...")
+        print("Will continue with essential tools installation...")
     
     # Create ONNX Runtime helper script
     print("\n=== Creating ONNX Runtime CUDA helper ===")
