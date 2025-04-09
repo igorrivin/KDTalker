@@ -126,121 +126,182 @@ def create_onnx_helper_script():
     cuda_path = find_cuda_path()
     script_path = Path('fix_onnxruntime_cuda.py')
     
-    script_content = f"""#!/usr/bin/env python
+    # Create a much simpler script that's less prone to errors
+    script_content = """#!/usr/bin/env python
 # This script helps configure ONNX Runtime to use CUDA
 import os
 import sys
 import subprocess
-from pathlib import Path as PathLib
+from pathlib import Path
+
+def find_cuda_path():
+    \"\"\"Find CUDA installation path\"\"\"
+    # Common CUDA locations
+    possible_paths = [
+        '/usr/local/cuda',
+        '/usr/local/cuda-12.1',
+        '/usr/local/cuda-12.0',
+        '/usr/local/cuda-11.8',
+        '/usr/local/cuda-11.7',
+        '/usr/local/cuda-11.6',
+        '/opt/cuda',
+    ]
+    
+    # Check environment variable first
+    if 'CUDA_PATH' in os.environ and os.path.exists(os.environ['CUDA_PATH']):
+        return os.environ['CUDA_PATH']
+    
+    # Try to get CUDA path from nvidia-smi
+    try:
+        nvidia_smi_output = subprocess.check_output(['nvidia-smi']).decode()
+        for line in nvidia_smi_output.splitlines():
+            if 'CUDA Version:' in line:
+                cuda_version = line.split('CUDA Version:')[1].strip().split()[0]
+                cuda_path = f'/usr/local/cuda-{cuda_version}'
+                if os.path.exists(cuda_path):
+                    return cuda_path
+    except:
+        pass
+    
+    # Check common paths
+    for path in possible_paths:
+        if os.path.exists(path) and os.path.isdir(path):
+            return path
+            
+    # Try to find using which nvcc
+    try:
+        nvcc_path = subprocess.check_output(['which', 'nvcc']).decode().strip()
+        if nvcc_path:
+            # nvcc is typically in the bin subdirectory of CUDA
+            cuda_path = os.path.dirname(os.path.dirname(nvcc_path))
+            if os.path.exists(cuda_path):
+                return cuda_path
+    except:
+        pass
+        
+    return None
+
+def find_cuda_libs():
+    \"\"\"Find CUDA library paths\"\"\"
+    cuda_path = find_cuda_path()
+    lib_paths = []
+    
+    # Add standard CUDA lib paths if CUDA found
+    if cuda_path:
+        for subdir in ['lib64', 'lib', 'lib/x64']:
+            full_path = os.path.join(cuda_path, subdir)
+            if os.path.exists(full_path):
+                lib_paths.append(full_path)
+    
+    # Check for WSL specific paths
+    try:
+        is_wsl = False
+        if os.path.exists('/proc/version'):
+            with open('/proc/version', 'r') as f:
+                if 'microsoft' in f.read().lower():
+                    is_wsl = True
+        
+        if is_wsl:
+            # WSL-specific NVIDIA paths
+            wsl_paths = [
+                '/usr/lib/wsl/lib',
+                '/usr/lib/wsl/drivers',
+                '/usr/lib/wsl/nvidia',
+                '/usr/lib/wsl/nvidia/current/lib64',
+                '/usr/lib/x86_64-linux-gnu',
+            ]
+            
+            for path in wsl_paths:
+                if os.path.exists(path):
+                    lib_paths.append(path)
+    except:
+        pass
+        
+    return lib_paths
 
 def main():
     print("ONNX Runtime CUDA Configuration Helper")
     print("======================================")
     
-    # Try to detect CUDA
-    cuda_path_var = {repr(cuda_path) if cuda_path else 'None'}
-    if not cuda_path_var:
+    # Find CUDA installation
+    cuda_path = find_cuda_path()
+    if cuda_path:
+        print(f"Found CUDA at: {cuda_path}")
+        os.environ['CUDA_PATH'] = cuda_path
+    else:
         print("Could not auto-detect CUDA path.")
         cuda_path_input = input("Please enter your CUDA installation path (e.g., /usr/local/cuda): ")
         if cuda_path_input and os.path.exists(cuda_path_input):
-            cuda_path_var = cuda_path_input
+            cuda_path = cuda_path_input
+            os.environ['CUDA_PATH'] = cuda_path
         else:
             print("No valid CUDA path provided. ONNX Runtime may not use CUDA.")
     
-    # Set environment variables
-    if cuda_path_var:
-        print(f"Setting CUDA_PATH={cuda_path_var}")
-        os.environ['CUDA_PATH'] = cuda_path_var
-        
-        # Set LD_LIBRARY_PATH - check for common library paths
-        ld_lib_path = os.environ.get('LD_LIBRARY_PATH', '')
-        
-        # Check for common CUDA library paths
-        possible_lib_paths = [
-            os.path.join(cuda_path_var, 'lib64'),
-            os.path.join(cuda_path_var, 'lib'),
-            os.path.join(cuda_path_var, 'lib/x64'),
-        ]
-        
-        # Add WSL2-specific paths if applicable
-        if os.path.exists('/proc/version') and 'microsoft' in open('/proc/version').read().lower():
-            # Direct implementation to avoid dependency on other functions
-            wsl_specific_paths = []
-            # Check for WSL-specific NVIDIA paths
-            for wsl_path in ['/usr/lib/wsl/lib', '/usr/lib/wsl/drivers', '/usr/lib/wsl/nvidia']:
-                if os.path.exists(wsl_path):
-                    wsl_specific_paths.append(wsl_path)
-            possible_lib_paths.extend(wsl_specific_paths)
-            # Additional common WSL2 paths
-            possible_lib_paths.extend([
-                '/usr/lib/wsl/lib',
-                '/usr/lib/wsl/drivers',
-                '/usr/lib/wsl/nvidia/current/lib64',
-                '/usr/lib/x86_64-linux-gnu',
-            ])
-        
-        cuda_lib_paths = []
-        for path in possible_lib_paths:
-            if os.path.exists(path):
-                print(f"Found CUDA library path: {path}")
-                cuda_lib_paths.append(path)
-        
-        if not cuda_lib_paths:
-            print("Warning: Could not find CUDA library paths automatically.")
-            custom_lib_path = input("Please enter your CUDA library path manually (or press Enter to skip): ")
-            if custom_lib_path and os.path.exists(custom_lib_path):
-                cuda_lib_paths.append(custom_lib_path)
-        
-        if cuda_lib_paths:
-            new_ld_path = ld_lib_path
-            for lib_path in cuda_lib_paths:
-                if lib_path not in ld_lib_path:
-                    new_ld_path = f"{lib_path}:{new_ld_path}" if new_ld_path else lib_path
+    # Find and set LD_LIBRARY_PATH
+    lib_paths = find_cuda_libs()
+    if lib_paths:
+        print(f"Found CUDA library paths:")
+        for path in lib_paths:
+            print(f"  - {path}")
             
-            print(f"Setting LD_LIBRARY_PATH={new_ld_path}")
-            os.environ['LD_LIBRARY_PATH'] = new_ld_path
-        else:
-            print("Warning: No CUDA library paths found or provided. ONNX Runtime may not find CUDA.")
-    
-    # Install ONNX Runtime
-    print("\\nInstalling ONNX Runtime...")
-    cmd = [sys.executable, "-m", "pip", "uninstall", "-y", "onnxruntime", "onnxruntime-gpu"]
-    subprocess.call(cmd)
-    
-    # Detect CUDA version for appropriate ORT version
+        # Set LD_LIBRARY_PATH
+        ld_lib_path = os.environ.get('LD_LIBRARY_PATH', '')
+        new_path = ':'.join(lib_paths)
+        if ld_lib_path:
+            new_path = f"{new_path}:{ld_lib_path}"
+        os.environ['LD_LIBRARY_PATH'] = new_path
+        print(f"Set LD_LIBRARY_PATH to include CUDA libraries")
+    else:
+        print("Warning: No CUDA library paths found.")
+        
+    # Determine CUDA version for appropriate ORT version
     cuda_version = None
-    if cuda_path_var:
+    if cuda_path:
         try:
-            nvcc_output = subprocess.check_output([os.path.join(cuda_path_var, 'bin', 'nvcc'), '--version']).decode()
-            for line in nvcc_output.split('\\n'):
-                if "release" in line and "V" in line:
-                    version_part = line.split("V")[1].split(".")[0]
-                    if version_part:
-                        cuda_version = int(version_part)
-                    break
+            nvcc_path = os.path.join(cuda_path, 'bin', 'nvcc')
+            if os.path.exists(nvcc_path):
+                nvcc_output = subprocess.check_output([nvcc_path, '--version']).decode()
+                for line in nvcc_output.splitlines():
+                    if "release" in line and "V" in line:
+                        version_part = line.split("V")[1].split(".")[0]
+                        if version_part:
+                            cuda_version = int(version_part)
+                        break
         except:
-            print("Could not determine CUDA version from nvcc")
+            try:
+                # Try getting version from nvidia-smi as fallback
+                nvidia_smi_output = subprocess.check_output(['nvidia-smi']).decode()
+                for line in nvidia_smi_output.splitlines():
+                    if 'CUDA Version:' in line:
+                        cuda_version = int(float(line.split('CUDA Version:')[1].strip().split()[0]))
+                        break
+            except:
+                print("Could not determine CUDA version")
     
-    # Try multiple installation options
-    def try_install_options():
+    # Uninstall any previous onnxruntime
+    print("\\nRemoving any existing onnxruntime installations...")
+    subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "onnxruntime", "onnxruntime-gpu"])
+    
+    # Install appropriate ONNX Runtime version
+    if cuda_version:
+        print(f"Detected CUDA version: {cuda_version}")
+        
+        if cuda_version >= 12:
+            print("Installing onnxruntime 1.16.3 for CUDA 12.x...")
+            onnx_version = "1.16.3"
+        elif cuda_version >= 11:
+            print("Installing onnxruntime 1.15.1 for CUDA 11.x...")
+            onnx_version = "1.15.1"
+        else:
+            print("Installing onnxruntime 1.14.1 for older CUDA versions...")
+            onnx_version = "1.14.1"
+            
+        # Try to install
         success = False
         
-        # Determine version based on CUDA version
-        if cuda_version:
-            print(f"Detected CUDA version: {cuda_version}")
-            if cuda_version >= 12:
-                onnx_version = "1.16.3"
-            elif cuda_version >= 11:
-                onnx_version = "1.15.1"
-            else:
-                onnx_version = "1.14.1"
-        else:
-            print("No CUDA version detected, using onnxruntime 1.15.1...")
-            onnx_version = "1.15.1"
-        
         # Try standard onnxruntime first
-        print(f"Installing onnxruntime {onnx_version}...")
         try:
+            print(f"Installing onnxruntime {onnx_version}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", f"onnxruntime=={onnx_version}"])
             success = True
         except:
@@ -254,7 +315,7 @@ def main():
                 success = True
             except:
                 print("onnxruntime-gpu installation failed.")
-        
+                
         # If both fail, try an older version
         if not success:
             try:
@@ -264,73 +325,68 @@ def main():
                 success = True
             except:
                 print("All onnxruntime installation attempts failed.")
-        
-        return success
+    else:
+        print("No CUDA version detected, installing CPU-only onnxruntime...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "onnxruntime==1.15.1"])
+        except:
+            print("Installation failed. You may need to install manually.")
     
-    # Try to install ONNX Runtime
-    success = try_install_options()
-    if not success:
-        print("WARNING: Could not install any version of ONNX Runtime automatically.")
-        print("You may need to install it manually following the instructions in the README.")
-    
-    # Check if CUDA is available in ONNX Runtime
+    # Verify CUDA is available
     print("\\nVerifying ONNX Runtime CUDA support...")
-    
-    verification_code = '''
-import onnxruntime as ort
-import os
-import sys
-
-# Print CUDA environment for debugging
-print(f"CUDA_PATH: {os.environ.get('CUDA_PATH', 'Not set')}")
-print(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', 'Not set')}")
-
-# Get providers
-providers = ort.get_available_providers()
-print(f"Available providers: {providers}")
-
-if 'CUDAExecutionProvider' in providers:
-    print("SUCCESS: CUDA is available for ONNX Runtime")
-    # Try to get device info
     try:
-        cuda_info = ort.get_device()
-        print(f"CUDA device info: {cuda_info}")
-    except:
-        print("Note: Could not query CUDA device info, but provider is available")
-else:
-    print("WARNING: CUDA is NOT available for ONNX Runtime")
-    
-    # Check if PyTorch can see CUDA as a reference point
-    try:
-        import torch
-        if torch.cuda.is_available():
-            print("Note: PyTorch CAN see CUDA but ONNX Runtime cannot")
-            print(f"PyTorch CUDA info: {torch.cuda.get_device_name(0)}")
-            print("This indicates an onnxruntime CUDA configuration issue")
+        # Run verification in the same process
+        import onnxruntime as ort
+        
+        print(f"CUDA_PATH: {os.environ.get('CUDA_PATH', 'Not set')}")
+        print(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', 'Not set')}")
+        
+        providers = ort.get_available_providers()
+        print(f"Available providers: {providers}")
+        
+        if 'CUDAExecutionProvider' in providers:
+            print("SUCCESS: CUDA is available for ONNX Runtime")
+            try:
+                device_info = ort.get_device()
+                print(f"CUDA device info: {device_info}")
+            except:
+                print("Note: Could not query device info, but provider is available")
         else:
-            print("Note: PyTorch also cannot see CUDA")
-            print("This indicates a system-wide CUDA configuration issue")
-    except:
-        print("Could not check PyTorch CUDA availability for comparison")
-    
-    print("\\nTroubleshooting steps:")
-    print("1. Check if NVIDIA driver is working with: nvidia-smi")
-    print("2. Ensure CUDA libraries are in your path")
-    print("3. Try reinstalling onnxruntime with proper CUDA support")
-'''
-    
-    print("Running verification...")
-    try:
-        subprocess.run([sys.executable, "-c", verification_code])
+            print("WARNING: CUDA is NOT available for ONNX Runtime")
+            
+            # Try comparing with PyTorch
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    print("Note: PyTorch CAN see CUDA but ONNX Runtime cannot")
+                    print(f"PyTorch CUDA info: {torch.cuda.get_device_name(0)}")
+                    print("This suggests an onnxruntime CUDA configuration issue")
+                else:
+                    print("Note: PyTorch also cannot see CUDA")
+                    print("This indicates a system-wide CUDA configuration issue")
+            except ImportError:
+                print("Could not check PyTorch for comparison (not installed)")
+    except ImportError:
+        print("ERROR: Could not import onnxruntime. Installation may have failed.")
     except Exception as e:
-        print(f"Error during verification: {{e}}")
+        print(f"Error during verification: {e}")
     
-    print("\\nIf CUDA is not available, you can try:")
-    print("  1. Set these in your .bashrc or before running python:")
-    print(f"     export CUDA_PATH={cuda_path_var or '/usr/local/cuda'}")
-    print(f"     export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH")
-    print("  2. Try installing onnxruntime-gpu if available for your Python version")
-    print("  3. Check CUDA installation with 'nvidia-smi' and 'nvcc --version'")
+    # Print final instructions
+    print("\\nTo ensure CUDA is available for future sessions:")
+    print("  1. Add these lines to your .bashrc or .bash_profile:")
+    if cuda_path:
+        print(f"     export CUDA_PATH={cuda_path}")
+    else:
+        print("     export CUDA_PATH=/usr/local/cuda")
+    
+    if lib_paths:
+        print(f"     export LD_LIBRARY_PATH={':'.join(lib_paths)}:$LD_LIBRARY_PATH")
+    else:
+        print("     export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH")
+    
+    print("  2. Restart your terminal or run 'source ~/.bashrc'")
+    print("  3. When running Python, make sure to specify CUDA providers:")
+    print("     session = onnxruntime.InferenceSession(model_path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])")
 
 if __name__ == "__main__":
     main()
