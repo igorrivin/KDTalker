@@ -70,8 +70,16 @@ conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=
 # OR for PyTorch 2.6.0 (Latest)
 conda install pytorch==2.6.0 torchvision==0.17.0 torchaudio==2.6.0 pytorch-cuda=12.1 -c pytorch -c nvidia
 
-# Install remaining dependencies
-pip install -r requirements.txt
+# Install remaining dependencies (use the automated approach or manual approach below)
+
+## OPTION 1: Automated installation (detects if you're on WSL2 or Unix/Mac)
+python install_deps.py
+
+## OPTION 2: Manual installation
+pip install -r requirements.txt  # Uses flexible version ranges
+# OR for specific platform versions:
+pip install -r requirements-wsl2.txt  # For WSL2
+pip install -r requirements-unix.txt  # For Unix/Mac
 ```
 
 ### Windows WSL2 Installation Notes

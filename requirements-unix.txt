@@ -1,3 +1,4 @@
+# Unix/Mac/Linux requirements (non-WSL2 systems)
 # Core ML dependencies
 onnxruntime-gpu==1.18.0  # Critical for model compatibility
 transformers==4.39.0
@@ -43,4 +44,4 @@ torch_ema==0.3
 warmup_scheduler==0.3
 yacs==0.1.8
 numpy==1.26.4
-dlib>=19.24.6,<=19.24.99  # Compatible with both WSL2 and other platforms
+dlib==19.24.99  # Latest version for Unix/Mac
