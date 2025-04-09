@@ -97,9 +97,20 @@ sudo apt-get update
 sudo apt-get install -y cuda-toolkit-12-1
 ```
 
-3. When installing dlib, you may need to install it separately:
+3. When installing dlib, you may need to install it separately with specific options for WSL2:
 ```
-pip install dlib==19.24.99
+# Install dlib with build dependencies
+sudo apt-get install -y cmake build-essential libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev
+pip install dlib==19.24.6
+```
+
+If you encounter build errors:
+```
+# Try disabling CUDA for dlib
+DLIB_USE_CUDA=0 pip install dlib==19.24.6
+
+# Or build without GPU support
+pip install dlib==19.24.6 --no-cache-dir --install-option="--no USE_CUDA"
 ```
 
 ### 2. Download pretrained weights
