@@ -61,12 +61,45 @@ git clone https://github.com/chaolongy/KDTalker
 cd KDTalker
 
 # create env using conda
-conda create -n KDTalker python=3.9
+conda create -n KDTalker python=3.10  # Updated from 3.9
 conda activate KDTalker
 
+# For PyTorch 2.3.0 (Original)
 conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 
+# OR for PyTorch 2.6.0 (Latest)
+conda install pytorch==2.6.0 torchvision==0.17.0 torchaudio==2.6.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+
+# Install remaining dependencies
 pip install -r requirements.txt
+```
+
+### Windows WSL2 Installation Notes
+
+If you're using Windows with WSL2, follow these additional steps for a smooth installation:
+
+1. Install build tools for dlib:
+```
+sudo apt-get update
+sudo apt-get install -y cmake libopenblas-dev liblapack-dev
+```
+
+2. For CUDA support in WSL2:
+   - Install NVIDIA drivers on Windows host
+   - Install CUDA toolkit in WSL2:
+```
+wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin
+sudo mv cuda-wsl-ubuntu.pin /etc/apt/preferences.d/cuda-repository-pin-600
+wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda-repo-wsl-ubuntu-12-1-local_12.1.0-1_amd64.deb
+sudo dpkg -i cuda-repo-wsl-ubuntu-12-1-local_12.1.0-1_amd64.deb
+sudo cp /var/cuda-repo-wsl-ubuntu-12-1-local/cuda-*-keyring.gpg /usr/share/keyrings/
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-1
+```
+
+3. When installing dlib, you may need to install it separately:
+```
+pip install dlib==19.24.99
 ```
 
 ### 2. Download pretrained weights
