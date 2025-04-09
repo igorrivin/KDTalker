@@ -123,8 +123,22 @@ pip install dlib==19.24.6 --no-cache-dir --install-option="--no USE_CUDA"
 
 4. For ONNX Runtime with CUDA support:
 
-The automatic installer script will attempt to install an appropriate version based on your CUDA version.
-If you need to install manually, use one of these options:
+#### NEW: ONNX Runtime CUDA Helper
+
+Our installation script now creates a special helper script `fix_onnxruntime_cuda.py` that will:
+- Automatically detect your CUDA installation
+- Set up the correct environment variables
+- Install the appropriate ONNX Runtime version for your CUDA version
+- Verify that CUDA is properly detected
+
+If ONNX Runtime isn't detecting your GPU, simply run:
+```bash
+python fix_onnxruntime_cuda.py
+```
+
+#### Manual Installation Options
+
+If you prefer to install manually, use one of these options:
 
 ```bash
 # Option 1: For older CUDA versions
@@ -137,17 +151,29 @@ pip install onnxruntime==1.15.1
 pip install onnxruntime==1.16.3
 ```
 
-If you have trouble with ONNX Runtime and CUDA, try:
+#### Troubleshooting CUDA Detection
 
+If ONNX Runtime still can't find your GPU:
+
+1. Set these environment variables before running Python:
 ```bash
-# Explicitly set CUDA paths:
-CUDA_PATH=/usr/local/cuda pip install onnxruntime
+export CUDA_PATH=/usr/local/cuda  # Adjust path as needed
+export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH
+```
 
-# Or try the onnxruntime-gpu package if available for your Python version:
-pip install onnxruntime-gpu
-
-# On some systems, you can use this to test CUDA availability:
+2. Check if CUDA is available:
+```bash
 python -c "import onnxruntime as ort; print('CUDA available:', 'CUDAExecutionProvider' in ort.get_available_providers())"
+```
+
+3. WSL2 specific notes:
+```bash
+# Make sure NVIDIA drivers are installed on Windows
+# Check if GPU is visible in WSL2
+nvidia-smi
+
+# If using WSL2, you may need to install NVIDIA tools
+sudo apt-get install -y nvidia-cuda-toolkit
 ```
 
 Note: For the model to use CUDA with ONNX Runtime, the Python code creates the sessions with:
