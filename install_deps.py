@@ -45,7 +45,53 @@ def main():
         print("Installation completed successfully!")
     except subprocess.CalledProcessError as e:
         print(f"Error during installation: {e}")
-        sys.exit(1)
+        print("Continuing with ONNX Runtime installation...")
+    
+    # Install ONNX Runtime separately
+    print("\n=== Installing ONNX Runtime with CUDA support ===")
+    
+    # Detect CUDA version
+    cuda_version = None
+    try:
+        result = subprocess.check_output(["nvcc", "--version"]).decode()
+        for line in result.split('\n'):
+            if "release" in line and "V" in line:
+                version_part = line.split("V")[1].split(".")[0]
+                if version_part:
+                    cuda_version = int(version_part)
+                break
+    except:
+        print("Could not detect CUDA version via nvcc")
+    
+    if cuda_version:
+        print(f"Detected CUDA version: {cuda_version}")
+        
+        # Install appropriate onnxruntime version based on CUDA version
+        onnx_cmd = []
+        if cuda_version >= 12:
+            print("Installing onnxruntime 1.16.3 for CUDA 12.x...")
+            onnx_cmd = [sys.executable, "-m", "pip", "install", "onnxruntime==1.16.3"]
+        elif cuda_version >= 11:
+            print("Installing onnxruntime 1.15.1 for CUDA 11.x...")
+            onnx_cmd = [sys.executable, "-m", "pip", "install", "onnxruntime==1.15.1"]
+        else:
+            print("Installing onnxruntime 1.14.1 for older CUDA versions...")
+            onnx_cmd = [sys.executable, "-m", "pip", "install", "onnxruntime==1.14.1"]
+        
+        try:
+            subprocess.check_call(onnx_cmd)
+            print("ONNX Runtime installation successful!")
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing ONNX Runtime: {e}")
+            print("Please install ONNX Runtime manually according to README.md")
+    else:
+        print("No CUDA version detected, installing CPU-only onnxruntime...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "onnxruntime==1.15.1"])
+            print("ONNX Runtime (CPU) installation successful!")
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing ONNX Runtime: {e}")
+            print("Please install ONNX Runtime manually according to README.md")
     
     # Additional instructions for all platforms
     print("\nPostinstallation steps:")

@@ -122,15 +122,37 @@ pip install dlib==19.24.6 --no-cache-dir --install-option="--no USE_CUDA"
 ```
 
 4. For ONNX Runtime with CUDA support:
+
+The automatic installer script will attempt to install an appropriate version based on your CUDA version.
+If you need to install manually, use one of these options:
+
+```bash
+# Option 1: For older CUDA versions
+pip install onnxruntime==1.14.1
+
+# Option 2: For CUDA 11.x compatibility
+pip install onnxruntime==1.15.1
+
+# Option 3: For CUDA 12.x compatibility
+pip install onnxruntime==1.16.3
 ```
-# The standard onnxruntime package supports CUDA if properly configured
-# If having issues, you can try:
 
-# For CUDA 11.8 compatibility:
-pip install onnxruntime==1.18.0
+If you have trouble with ONNX Runtime and CUDA, try:
 
-# For CUDA 12.1 compatibility:
-pip install onnxruntime==1.21.0
+```bash
+# Explicitly set CUDA paths:
+CUDA_PATH=/usr/local/cuda pip install onnxruntime
+
+# Or try the onnxruntime-gpu package if available for your Python version:
+pip install onnxruntime-gpu
+
+# On some systems, you can use this to test CUDA availability:
+python -c "import onnxruntime as ort; print('CUDA available:', 'CUDAExecutionProvider' in ort.get_available_providers())"
+```
+
+Note: For the model to use CUDA with ONNX Runtime, the Python code creates the sessions with:
+```python
+session = onnxruntime.InferenceSession(model_path, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 ```
 
 ### 2. Download pretrained weights

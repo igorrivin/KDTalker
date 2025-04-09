@@ -1,5 +1,6 @@
 # Core ML dependencies
-onnxruntime>=1.18.0,<=1.21.0  # With CUDA support from system
+# Note: onnxruntime should be installed manually for CUDA support
+# See README.md for installation instructions
 transformers==4.39.0
 pyyaml==6.0.1
 scipy==1.12.0
