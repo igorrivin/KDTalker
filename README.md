@@ -125,11 +125,13 @@ pip install dlib==19.24.6 --no-cache-dir --install-option="--no USE_CUDA"
 
 #### NEW: ONNX Runtime CUDA Helper
 
-Our installation script now creates a special helper script `fix_onnxruntime_cuda.py` that will:
-- Automatically detect your CUDA installation
+Our installation script now creates a special helper script `fix_onnxruntime_cuda.py` with **enhanced WSL2 support** that will:
+- Automatically detect your CUDA installation (with special WSL2 detection paths)
 - Set up the correct environment variables
+- Find all available CUDA library paths in your system
 - Install the appropriate ONNX Runtime version for your CUDA version
 - Verify that CUDA is properly detected
+- Compare with PyTorch CUDA detection for troubleshooting
 
 If ONNX Runtime isn't detecting your GPU, simply run:
 ```bash
